@@ -3,87 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GoJa App - Chinh phục N1</title>
+    <title>GoJa App - N1 Roadmap</title>
     <style>
-        /* CSS cho trang chào */
+        /* 🎨 HỆ THỐNG THEME */
+        :root {
+            --bg-color: #f5f6fa;
+            --text-color: #2f3640;
+            --primary-color: #d63031;
+            --card-bg: #ffffff;
+            --nav-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e272e;
+            --text-color: #efefef;
+            --primary-color: #ff5e57;
+            --card-bg: #2f3542;
+            --nav-bg: #2f3542;
+        }
+
+        [data-theme="sakura"] {
+            --bg-color: #fff5f6;
+            --text-color: #6d214f;
+            --primary-color: #ef5777;
+            --card-bg: #ffffff;
+            --nav-bg: #fff5f6;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            padding-bottom: 80px; /* Tránh đè lên Menu */
+        }
+
+        /* ✨ TRANG BẮT ĐẦU (OVERLAY) */
         #start-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); /* Màu hồng anh đào */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 10000; transition: opacity 0.5s ease;
         }
+        #start-screen.hidden { opacity: 0; pointer-events: none; }
 
-        #start-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
+        /* 📱 MENU BAR DƯỚI ĐÁY */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%;
+            background: var(--nav-bg);
+            display: flex; justify-content: space-around;
+            padding: 12px 0 25px 0; /* Tối ưu cho nút Home iPhone 8 Plus */
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
         }
+        .nav-item { text-align: center; cursor: pointer; font-size: 12px; font-weight: bold; color: var(--text-color); }
+        .nav-item span { font-size: 24px; display: block; margin-bottom: 4px; }
 
-        .logo-box {
-            background: white;
-            padding: 20px 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: 3rem;
-            color: #d63031;
-            margin: 0;
-            font-family: 'Arial', sans-serif;
-        }
-
-        p {
-            color: #636e72;
-            font-style: italic;
-        }
-
-        .btn-start {
-            padding: 15px 50px;
-            font-size: 1.2rem;
-            background-color: #d63031;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(214, 48, 49, 0.4);
-            transition: transform 0.2s;
-        }
-
-        .btn-start:active {
-            transform: scale(0.95);
-        }
+        /* 📦 CONTAINER NỘI DUNG */
+        .container { padding: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .hidden { display: none; }
+        .theme-btn { padding: 10px 15px; margin: 5px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-start { padding: 15px 40px; font-size: 1.2rem; background: #d63031; color: white; border: none; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <div class="logo-box">
-            <h1>GoJa 🇯🇵</h1>
-            <p>Mục tiêu N1 - Bắt đầu từ N5</p>
+        <div style="background:white; padding:30px; border-radius:20px; text-align:center; margin-bottom:30px;">
+            <h1 style="color:#d63031; margin:0; font-size:3rem;">GoJa</h1>
+            <p style="color:#636e72;">Đích đến là N1! 🎯</p>
         </div>
-        <button class="btn-start" onclick="startApp()">Học Ngay!</button>
+        <button class="btn-start" onclick="startApp()">Bắt đầu học ngay 🚀</button>
     </div>
 
-    <div id="main-content">
-        <h2>Chào mừng bạn đến với bài học N5!</h2>
+    <div class="container">
+        <div id="page-home" class="page">
+            <h2 style="color: var(--primary-color);">Bài học hôm nay 🇯🇵</h2>
+            <div class="card">
+                <h3>Kế hoạch học tập</h3>
+                <p>Hãy dán toàn bộ phần từ vựng, ngữ pháp cũ của bạn vào đây nhé!</p>
+            </div>
         </div>
+
+        <div id="page-settings" class="page hidden">
+            <h2>Cài đặt ⚙️</h2>
+            <div class="card">
+                <h3>Chọn giao diện</h3>
+                <button class="theme-btn" style="background:#f5f6fa;" onclick="setTheme('light')">Sáng</button>
+                <button class="theme-btn" style="background:#1e272e; color:white;" onclick="setTheme('dark')">Tối</button>
+                <button class="theme-btn" style="background:#fff5f6; color:#ef5777;" onclick="setTheme('sakura')">Anh Đào</button>
+            </div>
+            <div class="card">
+                <h3>Thiết bị & Hệ điều hành</h3>
+                <p>iPhone 8 Plus - iOS 16.7.11 📱</p>
+                <p>Trạng thái: GoJa App Online</p>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item" onclick="showPage('home')"><span>🏠</span>Home</div>
+        <div class="nav-item" onclick="goToMainGoja()" style="color: #0984e3;"><span>🚀</span>GoJa Chính</div>
+        <div class="nav-item" onclick="showPage('settings')"><span>⚙️</span>Cài đặt</div>
+    </nav>
 
     <script>
         function startApp() {
-            // Hiệu ứng ẩn trang chào
             document.getElementById('start-screen').classList.add('hidden');
         }
-    </script>
 
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + pageId).classList.remove('hidden');
+        }
+
+        function setTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            localStorage.setItem('goja-theme', themeName);
+        }
+
+        function goToMainGoja() {
+            // Thay đổi link này thành link GoJa chính của bạn
+            window.location.href = "https://goja.myftp.org/Goja-main/"; 
+        }
+
+        // Khởi tạo theme
+        const savedTheme = localStorage.getItem('goja-theme') || 'light';
+        setTheme(savedTheme);
+    </script>
 </body>
 </html>
