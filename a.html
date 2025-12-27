@@ -4,40 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoJa - Ứng Dụng Từ Vựng Tiếng Nhật</title>
-    <!-- Tải Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tải React và ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Tải Babel để xử lý JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-indigo-50 font-sans">
-    <!-- Nơi React sẽ render ứng dụng -->
     <div id="root"></div>
 
-    <!-- Tải các thư viện Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Gán các hàm Firebase vào window để code React (Babel) có thể truy cập
         window.firebaseAppModules = {
             initializeApp, getAuth, signInWithCustomToken, signInAnonymously,
             getFirestore, doc, getDoc, runTransaction, setLogLevel
         };
-        // Bật log Firebase ở chế độ Debug
         setLogLevel('Debug');
     </script>
     
-    <p>
-  <a href="index.html" style="background: #eee; padding: 10px; border-radius: 5px; text-decoration: none; color: black;">
-     ⬅️ Quay về màn hình chính
-  </a>
-</p>
-
-
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo } = React;
         const { 
@@ -45,7 +31,6 @@
             getFirestore, doc, getDoc, runTransaction 
         } = window.firebaseAppModules;
 
-        // Dữ liệu câu hỏi N4/N3 mặc định
         const QUIZ_DATA = [
             { word: "景色 (けしき)", options: ["Thời tiết", "Cảnh sắc", "Lịch sử", "Âm nhạc"], answer: "Cảnh sắc" },
             { word: "入院する (にゅういんする)", options: ["Tốt nghiệp", "Nhập viện", "Xuất cảnh", "Vào công ty"], answer: "Nhập viện" },
@@ -55,7 +40,6 @@
             { word: "経験 (けいけん)", options: ["Lý thuyết", "Kiến thức", "Kinh nghiệm", "Học vấn"], answer: "Kinh nghiệm" }
         ];
 
-        // --- CUSTOM HOOK: Quản lý Auth và Điểm Cao (Giải quyết Point 3) ---
         const useGoJaScoreAndAuth = () => {
             const [db, setDb] = useState(null);
             const [userId, setUserId] = useState(null);
@@ -64,29 +48,25 @@
             const [isLoading, setIsLoading] = useState(true);
             const appId = useMemo(() => typeof __app_id !== 'undefined' ? __app_id : 'goja-app', []);
 
-            // Logic 1: Khởi tạo và Xác thực
             useEffect(() => {
                 const authenticateAndInit = async () => {
                     try {
                         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
                         if (!Object.keys(firebaseConfig).length) throw new Error("Không tìm thấy cấu hình Firebase.");
-
                         const app = initializeApp(firebaseConfig);
                         const authInstance = getAuth(app);
                         const dbInstance = getFirestore(app);
-
                         if (typeof __initial_auth_token !== 'undefined') {
                             await signInWithCustomToken(authInstance, __initial_auth_token);
                         } else {
                             await signInAnonymously(authInstance);
                         }
-                        
                         const currentUserId = authInstance.currentUser?.uid || crypto.randomUUID();
                         setUserId(currentUserId);
                         setDb(dbInstance);
                         setIsAuthReady(true);
                     } catch (error) {
-                        console.error("Lỗi xác thực/khởi tạo Firebase:", error.message);
+                        console.error("Lỗi xác thực:", error.message);
                         setIsAuthReady(true); 
                     } finally {
                         setIsLoading(false);
@@ -95,111 +75,65 @@
                 authenticateAndInit();
             }, []);
 
-            // Logic 2: Tải Điểm Cao
             const loadHighScore = useCallback(async () => {
                 if (!db || !userId) return;
                 const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/scores`, 'goja_high_score');
                 try {
                     const docSnap = await getDoc(userDocRef);
-                    if (docSnap.exists()) {
-                        setHighScore(docSnap.data().score);
-                    }
-                } catch (error) {
-                    console.error("Lỗi khi tải điểm cao:", error);
-                }
+                    if (docSnap.exists()) setHighScore(docSnap.data().score);
+                } catch (error) { console.error(error); }
             }, [db, userId, appId]);
 
             useEffect(() => {
-                if (isAuthReady && userId && db) {
-                    loadHighScore();
-                }
+                if (isAuthReady && userId && db) loadHighScore();
             }, [isAuthReady, userId, db, loadHighScore]);
 
-            // Logic 3: Lưu Điểm Cao
             const saveHighScore = useCallback(async (newScore) => {
                 if (!db || !userId) return;
-
                 const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/scores`, 'goja_high_score');
-                
                 try {
                     await runTransaction(db, async (transaction) => {
                         const sfDoc = await transaction.get(userDocRef);
                         const currentBestScore = sfDoc.exists() ? sfDoc.data().score : 0;
-                        
                         if (newScore > currentBestScore) {
                             transaction.set(userDocRef, { score: newScore, date: new Date().toISOString() });
                             setHighScore(newScore);
                         }
                     });
-                } catch (error) {
-                    console.error("Lỗi khi lưu điểm cao:", error);
-                }
+                } catch (error) { console.error(error); }
             }, [db, userId, appId]);
 
             return { userId, isAuthReady, isLoading, highScore, saveHighScore };
         };
 
-        // Component Modal Tải Bộ Câu Hỏi
         const ImportModal = ({ isOpen, onClose, handleFileChange, statusMessage, resetQuizToDefault }) => {
             if (!isOpen) return null;
-
             return (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform scale-100 transition-transform duration-300">
-                        <h3 className="text-xl font-bold text-indigo-700 mb-4 border-b pb-2">
-                            📥 Tải Câu Hỏi
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Tải lên tệp JSON chứa bộ từ vựng của riêng bạn (cần có các trường: `word`, `options`, `answer`).
-                        </p>
-                        
+                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+                        <h3 className="text-xl font-bold text-indigo-700 mb-4 border-b pb-2">📥 Tải Câu Hỏi</h3>
                         <div className="space-y-4">
-                            <input 
-                                type="file" 
-                                accept=".json" 
-                                onChange={handleFileChange} 
-                                className="text-sm w-full file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-100 file:text-teal-700 hover:file:bg-teal-200 cursor-pointer"
-                            />
-
-                            <p className={`text-sm ${statusMessage.startsWith('✅') ? 'text-green-600' : statusMessage.startsWith('❌') ? 'text-red-600' : 'text-gray-500'}`}>
-                                {statusMessage}
-                            </p>
-
-                            <button
-                                onClick={resetQuizToDefault}
-                                className="w-full py-2 text-sm text-indigo-700 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition duration-150 active:scale-[0.99]"
-                            >
-                                🔁 Dùng Bộ Câu Hỏi Mặc Định
-                            </button>
-
-                            <button
-                                onClick={onClose}
-                                className="w-full py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition duration-150 active:scale-95"
-                            >
-                                Đóng
-                            </button>
+                            <input type="file" accept=".json" onChange={handleFileChange} className="text-sm w-full" />
+                            <p className="text-xs text-gray-500">{statusMessage}</p>
+                            <button onClick={resetQuizToDefault} className="w-full py-2 text-sm text-indigo-700 border border-indigo-300 rounded-lg">🔁 Mặc định</button>
+                            <button onClick={onClose} className="w-full py-2 bg-indigo-600 text-white rounded-lg">Đóng</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // Component chính của ứng dụng
         const App = () => {
-            // Sử dụng Custom Hook để lấy trạng thái Auth/Điểm cao (Code sạch hơn)
             const { userId, isLoading, highScore, saveHighScore } = useGoJaScoreAndAuth();
-            
-            // --- GAME STATES ---
             const [questions, setQuestions] = useState(QUIZ_DATA); 
             const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
             const [currentScore, setCurrentScore] = useState(0);
             const [isAnswered, setIsAnswered] = useState(false);
             const [feedback, setFeedback] = useState('');
             const [isQuizFinished, setIsQuizFinished] = useState(false);
-            const [statusMessage, setStatusMessage] = useState('Đang dùng bộ câu hỏi mặc định.');
+            const [statusMessage, setStatusMessage] = useState('Đang dùng mặc định.');
             const [isModalOpen, setIsModalOpen] = useState(false);
 
-            // --- HÀM RESET QUIZ (Giải quyết Point 1) ---
             const resetQuiz = useCallback((newQuestions = questions) => {
                 setQuestions(newQuestions);
                 setCurrentQuestionIndex(0);
@@ -209,213 +143,111 @@
                 setIsQuizFinished(false);
             }, [questions]);
 
-            const resetQuizToDefault = () => {
-                resetQuiz(QUIZ_DATA);
-                setStatusMessage(`Đã đặt lại thành công bộ câu hỏi mặc định (${QUIZ_DATA.length} câu)!`);
-            };
-
-            // --- LOGIC TẢI FILE DỮ LIỆU ---
             const handleFileChange = (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
-
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
-                        // Kiểm tra cấu trúc đơn giản của JSON
-                        if (Array.isArray(data) && data.length > 0 && data.every(item => item.word && Array.isArray(item.options) && item.answer)) {
-                            resetQuiz(data); // Cập nhật bộ câu hỏi và reset trò chơi
-                            setStatusMessage(`✅ Đã tải thành công ${data.length} câu hỏi mới từ tệp!`);
-                            // Đóng modal sau khi tải thành công
-                            setTimeout(() => setIsModalOpen(false), 500); 
-                        } else {
-                            setStatusMessage("❌ Lỗi: Định dạng tệp JSON không hợp lệ.");
+                        if (Array.isArray(data)) {
+                            resetQuiz(data);
+                            setStatusMessage(`✅ Thành công!`);
+                            setTimeout(() => setIsModalOpen(false), 500);
                         }
-                    } catch (error) {
-                        setStatusMessage("❌ Lỗi đọc tệp. Hãy đảm bảo đó là tệp JSON hợp lệ.");
-                        console.error("File read error:", error);
-                    }
+                    } catch (e) { setStatusMessage("❌ Lỗi JSON"); }
                 };
                 reader.readAsText(file);
             };
 
-            // --- LOGIC TRÒ CHƠI ---
             const currentQuestion = questions[currentQuestionIndex];
-            const totalQuestions = questions.length;
-
-            const checkAnswer = (selectedOption) => {
+            const checkAnswer = (option) => {
                 if (isAnswered) return;
-
-                const isCorrect = selectedOption === currentQuestion.answer;
+                const correct = option === currentQuestion.answer;
                 setIsAnswered(true);
-
-                if (isCorrect) {
-                    setFeedback('✅ Chính xác! +1 điểm.');
-                    setCurrentScore(prevScore => prevScore + 1);
-                } else {
-                    setFeedback(`❌ Sai rồi. Đáp án đúng là: ${currentQuestion.answer}`);
-                }
+                if (correct) {
+                    setFeedback('✅ Chính xác!');
+                    setCurrentScore(s => s + 1);
+                } else setFeedback(`❌ Sai rồi! Đáp án: ${currentQuestion.answer}`);
             };
 
             const handleNext = () => {
-                if (currentQuestionIndex < totalQuestions - 1) {
-                    setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+                if (currentQuestionIndex < questions.length - 1) {
+                    setCurrentQuestionIndex(i => i + 1);
                     setIsAnswered(false);
                     setFeedback('');
                 } else {
-                    // Kết thúc bài kiểm tra
                     setIsQuizFinished(true);
                     saveHighScore(currentScore);
                 }
             };
 
-            const handleRestart = () => {
-                resetQuiz(questions);
-            };
-
-            // Logic chọn class cho nút (Giải quyết Point 2 - styling)
-            const getButtonClass = (option) => {
-                const baseClasses = 'w-full py-3 text-white font-medium rounded-xl transition-all duration-200 shadow-md active:scale-[0.98]';
-                
-                if (!isAnswered) {
-                    // Trạng thái chưa trả lời
-                    return `${baseClasses} bg-teal-600 hover:bg-teal-700`;
-                }
-                
-                // Trạng thái đã trả lời
-                if (option === currentQuestion.answer) {
-                    // Đáp án đúng
-                    return `${baseClasses} bg-green-500 shadow-lg`;
-                }
-                
-                if (option !== currentQuestion.answer) {
-                    // Đáp án sai
-                    return `${baseClasses} bg-gray-400 opacity-80 shadow-inner`;
-                }
-            };
-            
-            // --- RENDER FUNCTIONS ---
-            
-            if (isLoading) {
-                return (
-                    <div className="flex items-center justify-center h-screen bg-indigo-50">
-                        <div className="text-xl text-indigo-800 animate-pulse">Đang tải ứng dụng GoJa...</div>
-                    </div>
-                );
-            }
-
-            const renderQuizContent = () => {
-                if (isQuizFinished) {
-                    return (
-                        <div className="p-4 space-y-4">
-                            <h3 className="text-2xl font-extrabold text-indigo-700"> HOÀN THÀNH !</h3>
-                            <p className="text-lg text-gray-700">
-                                Bạn đã đạt được: <span className="text-3xl font-bold text-green-600">{currentScore}</span> / {totalQuestions} điểm.
-                            </p>
-                            <p className="text-md text-gray-600">
-                                Điểm cao nhất của bạn: <span className="font-bold text-indigo-500">{highScore}</span>
-                            </p>
-                            {currentScore > highScore && highScore > 0 && (
-                                <p className="text-yellow-600 font-semibold">🎉 Kỷ lục mới đã được lưu!</p>
-                            )}
-                            <button
-                                onClick={handleRestart}
-                                className="w-full py-3 mt-6 text-white bg-indigo-600 rounded-lg shadow-lg hover:bg-indigo-700 transition duration-150 active:scale-95"
-                            >
-                                Chơi Lại ({totalQuestions} câu)
-                            </button>
-                        </div>
-                    );
-                }
-
-                return (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center text-gray-500 font-semibold text-sm">
-                            <span>Câu: {currentQuestionIndex + 1} / {totalQuestions}</span>
-                        </div>
-                        
-                        <div id="question" className="p-4 bg-indigo-50 rounded-xl shadow-inner min-h-[100px] flex items-center justify-center border-b-4 border-indigo-200">
-                            <p className="text-3xl sm:text-4xl font-black text-indigo-800 break-words">{currentQuestion.word}</p>
-                        </div>
-
-                        <div className="options space-y-3" id="options-container">
-                            {currentQuestion.options.map((option, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => checkAnswer(option)}
-                                    className={getButtonClass(option)}
-                                    disabled={isAnswered}
-                                >
-                                    {option}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div id="feedback" className={`min-h-[30px] font-semibold text-center transition-opacity duration-300 ${isAnswered ? 'opacity-100' : 'opacity-0'} ${feedback.startsWith('✅') ? 'text-green-600' : 'text-red-600'}`}>
-                            {feedback}
-                        </div>
-
-                        {isAnswered && (
-                            <button
-                                onClick={handleNext}
-                                className="w-full py-3 text-white bg-indigo-500 rounded-xl shadow-lg hover:bg-indigo-600 transition duration-150 active:scale-95"
-                            >
-                                {currentQuestionIndex < totalQuestions - 1 ? 'Câu Tiếp➡️' : 'Kết Thúc 🏁'}
-                            </button>
-                        )}
-                    </div>
-                );
-            };
-
             return (
-                <div className="min-h-screen p-4 sm:p-6 flex items-center justify-center">
-                    <div className="w-full max-w-sm bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-indigo-100">
+                <div className="min-h-screen p-4 flex flex-col items-center justify-center">
+                    <div className="w-full max-w-sm bg-white p-6 rounded-2xl shadow-xl border border-indigo-100">
                         
+                        {/* HEADER: Chữ GoJa đã thành link nhấn được */}
                         <div className="flex justify-between items-center mb-6 border-b-2 border-indigo-200 pb-2">
-                            <h1 className="text-3xl font-extrabold text-indigo-700">
+                            <a href="index.html" className="text-3xl font-extrabold text-indigo-700 hover:opacity-70 transition-opacity">
                                 <span role="img" aria-label="japan flag">🇯🇵</span> GoJa
-                            </h1>
-                            <button 
-                                onClick={() => setIsModalOpen(true)}
-                                className="p-2 bg-teal-600 text-white rounded-full shadow-md hover:bg-teal-700 transition-transform active:scale-95 text-lg"
-                                title="Tải Thêm Câu Hỏi"
-                            >
-                                📥
-                            </button>
+                            </a>
+                            <button onClick={() => setIsModalOpen(true)} className="p-2 bg-teal-600 text-white rounded-full shadow-md text-lg">📥</button>
                         </div>
                         
-                        <div className="flex justify-between text-sm sm:text-base font-semibold text-gray-600 mb-4 p-3 bg-gray-100 rounded-lg shadow-inner">
-                            <p>
-                                Điểm Hiện Tại: <span className="text-indigo-600 font-bold">{currentScore}</span>
-                            </p>
-                            <p>
-                                Điểm Cao Nhất: <span className="text-green-600 font-bold">{highScore}</span>
-                            </p>
+                        <div className="flex justify-between text-sm font-semibold text-gray-600 mb-4 p-3 bg-gray-100 rounded-lg">
+                            <p>Điểm: <span className="text-indigo-600">{currentScore}</span></p>
+                            <p>Cao nhất: <span className="text-green-600">{highScore}</span></p>
                         </div>
                         
-                        {renderQuizContent()}
+                        {isQuizFinished ? (
+                            <div className="text-center space-y-4">
+                                <h3 className="text-xl font-bold">HOÀN THÀNH!</h3>
+                                <p className="text-3xl font-bold text-green-600">{currentScore} / {questions.length}</p>
+                                <button onClick={() => resetQuiz()} className="w-full py-3 bg-indigo-600 text-white rounded-xl shadow-lg">Chơi Lại</button>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <p className="text-sm text-gray-400">Câu: {currentQuestionIndex + 1}/{questions.length}</p>
+                                <div className="p-4 bg-indigo-50 rounded-xl text-center">
+                                    <p className="text-3xl font-black text-indigo-800">{currentQuestion.word}</p>
+                                </div>
+                                <div className="space-y-3">
+                                    {currentQuestion.options.map((opt, i) => (
+                                        <button key={i} onClick={() => checkAnswer(opt)} disabled={isAnswered}
+                                            className={`w-full py-3 rounded-xl text-white font-medium transition-all ${isAnswered ? (opt === currentQuestion.answer ? 'bg-green-500' : 'bg-gray-400') : 'bg-teal-600 hover:bg-teal-700'}`}>
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                                {isAnswered && (
+                                    <div className="space-y-4">
+                                        <p className={`text-center font-bold ${feedback.includes('✅') ? 'text-green-600' : 'text-red-600'}`}>{feedback}</p>
+                                        <button onClick={handleNext} className="w-full py-3 bg-indigo-500 text-white rounded-xl shadow-lg">
+                                            {currentQuestionIndex < questions.length - 1 ? 'Tiếp theo ➡️' : 'Kết thúc 🏁'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                        <div className="mt-6 text-xs text-gray-400 text-center border-t pt-3">
-                            ID Người Dùng: {userId || 'Đang xác thực...'}
+                        {/* NÚT QUAY VỀ: Nằm gọn gàng bên trong khung trắng */}
+                        <div className="mt-8 pt-4 border-t border-gray-100 text-center">
+                            <a href="index.html" className="inline-flex items-center text-sm font-bold text-indigo-400 hover:text-indigo-600 transition-colors">
+                                <span className="mr-2">⬅️</span> Quay về màn hình chính
+                            </a>
+                        </div>
+
+                        <div className="mt-4 text-[10px] text-gray-300 text-center uppercase tracking-widest">
+                            ID: {userId || 'Authenticating...'}
                         </div>
                     </div>
 
-                    <ImportModal 
-                        isOpen={isModalOpen} 
-                        onClose={() => setIsModalOpen(false)} 
-                        handleFileChange={handleFileChange} 
-                        statusMessage={statusMessage} 
-                        resetQuizToDefault={resetQuizToDefault}
-                    />
+                    <ImportModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} handleFileChange={handleFileChange} statusMessage={statusMessage} resetQuizToDefault={() => resetQuiz(QUIZ_DATA)} />
                 </div>
             );
         };
 
-        // Render ứng dụng
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
-
-
